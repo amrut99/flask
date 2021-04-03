@@ -1,0 +1,72 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8"/>
+    <title>Quiz Question</title>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.16.0/umd/popper.min.js"></script>
+  <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+ 
+</head>
+<body>
+        <div class="container">
+          <h3 class="display-4" id="question">Enter your quiz question for following quiz</h3>    
+        </div>
+    <div class="container">
+        <form action="." method='POST' enctype = "multipart/form-data">
+            <div class="form-group">
+            <p class="text-info">{{message}}</p>
+            <p id="quizcode" class="text-primary">Quiz Code: {{quizcode}}</p>
+                <input type="hidden" name="qcode" id="qcode" value={{quizcode}}>
+            <div class="form-group">
+                <label for="q" class="text-primary">Question:</label>
+                <input type="text" class="form-control" id="q" name="q">
+            </div>
+            <div class="row">
+                <div class="col">
+                    <label for="file" class="text-primary">Upload Image if any</label>
+                    <input type="file" class="form-control-file border" id="file" name='file'>
+                </div> 
+            </div>   
+            <label for="a" class="text-primary">Answer Choices</label>
+            <div class="row">
+                <div class="col">
+                    <div class="form-group">
+                        <label for="c1" class="text-info">Choice 1:</label>
+                        <input type="text" class="form-control" id="c1" name="c1">
+                    </div> 
+                </div>
+                <div class="col">
+                    <div class="form-group">
+                        <label for="c2" class="text-info">Choice 2:</label>
+                        <input type="text" class="form-control" id="c2" name="c2">
+                    </div> 
+                </div>
+            </div> 
+            <div class="row">
+                <div class="col">
+                    <div class="form-group">
+                        <label for="c3" class="text-info">Choice 3:</label>
+                        <input type="text" class="form-control" id="c3" name="c3">
+                    </div> 
+                </div>
+                <div class="col">
+                    <div class="form-group">
+                        <label for="c4" class="text-info">Choice 4:</label>
+                        <input type="text" class="form-control" id="c4" name="c4">
+                    </div> 
+                </div>
+            </div> 
+            <div class="row">
+                <div class="col">
+                    <button type="submit" class="btn btn-primary">Send</button>
+                </div> 
+            </div> 
+        </div>
+        </form>
+</body>
+</html>

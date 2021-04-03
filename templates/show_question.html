@@ -1,0 +1,91 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8"/>
+    <title>Quiz Question</title>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.16.0/umd/popper.min.js"></script>
+  <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+  <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+  <script type="text/javascript" charset="utf-8">
+   const socket = io('http://localhost:5000')
+
+    socket.on('connect', () => {
+    console.log("socket connected");
+    socket.on('mybroadcast', (data) =>{
+        document.getElementById("q").value = data['q'];
+        document.getElementById("c1").value = data['c1'];
+        document.getElementById("c2").value = data['c2'];
+        document.getElementById("c3").value = data['c3'];
+        document.getElementById("c4").value = data['c4'];
+    });
+    $("form").submit(function () {
+            //socket.emit('message',{'q':document.getElementById("q").value})
+            return false;
+        });
+    });
+</script>
+</head>
+<body>
+        <div class="container">
+          <h3 class="display-4" id="question">Answer this Question</h3>
+        </div>
+    <div class="container">
+        <form action="#" id="emit" method='POST'>
+            <div class="form-group">
+            <p class="text-info">{{message}}</p>
+            <p id="quizcode" class="text-primary">Quiz Code: {{quizcode}}</p>
+                <input type="hidden" name="qcode" id="qcode" value={{quizcode}}>
+            <div class="form-group">
+                <label for="q" class="text-primary">Question:</label>
+                <input type="text" class="form-control" id="q" name="q" value="{{q}}">
+            </div>
+            <div class="row">
+                <div class="col">
+                    <label for="file" class="text-primary">Upload Image if any</label>
+                   <img class="img-thumbnail" src="{{img}}">
+                </div> 
+            </div>   
+            <label for="a" class="text-primary">Answer Choices</label>
+            <div class="row">
+                <div class="col">
+                    <div class="form-group">
+                        <label for="c1" class="text-info">Choice 1:</label>
+                        <input type="text" class="form-control" id="c1" name="c1" value="{{c1}}">
+                    </div> 
+                </div>
+                <div class="col">
+                    <div class="form-group">
+                        <label for="c2" class="text-info">Choice 2:</label>
+                        <input type="text" class="form-control" id="c2" name="c2" value="{{c2}}">
+                    </div> 
+                </div>
+            </div> 
+            <div class="row">
+                <div class="col">
+                    <div class="form-group">
+                        <label for="c3" class="text-info">Choice 3:</label>
+                        <input type="text" class="form-control" id="c3" name="c3" value="{{c3}}">
+                    </div> 
+                </div>
+                <div class="col">
+                    <div class="form-group">
+                        <label for="c4" class="text-info">Choice 4:</label>
+                        <input type="text" class="form-control" id="c4" name="c4" value="{{c4}}"> 
+                    </div> 
+                </div>
+            </div> 
+            <div class="row">
+                <div class="col">
+                    <button type="submit" class="btn btn-primary">Post To All</button>
+                </div> 
+            </div> 
+        </div>
+        </form>
+        <div id="log" ></div>
+</body>
+</html>
