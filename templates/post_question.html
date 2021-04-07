@@ -21,7 +21,8 @@
                                       'c1':document.getElementById("c1").value,
                                       'c2':document.getElementById("c2").value,
                                       'c3':document.getElementById("c3").value,
-                                      'c4':document.getElementById("c4").value
+                                      'c4':document.getElementById("c4").value,
+                                      'img':document.getElementById("qimage").getAttribute("src")
                                     }
             )
             return false;
@@ -46,7 +47,7 @@
             <div class="row">
                 <div class="col">
                     <label for="file" class="text-primary">Upload Image if any</label>
-                   <img class="img-thumbnail" src="{{img}}">
+                   <img class="img-thumbnail" name="qimage" id="qimage" src="{{img}}"/>
                 </div> 
             </div>   
             <label for="a" class="text-primary">Answer Choices</label>

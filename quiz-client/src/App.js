@@ -55,25 +55,35 @@ const useStyles = makeStyles((theme) => ({
 }));
 
 function App() {
+  var default_question = {
+    "q":"Who is V. sadsa?",
+    "a":["cricketer","chess player 1","Soccer 2","Tennis"],
+    "ans":"chess player 1",
+    "img": "merc.jpeg"
+  }
   const classes = useStyles();
   const [quizcode, setQuizCode] = useState("");
   const [username, setUsername] = useState("");
   const [answer, setAnswer] = useState("");
-  const [question, setQuestion] = useState("");
+  const [question, setQuestion] = useState(default_question);
 
-  const questions = {
-    "q":"Who is V. Anand?",
-    "a":["cricketer","chess player","Soccer","Tennis"]
-  }
+  
   useEffect(() => {
-    const socket = openSocket("http://localhost:5000/");
+    const socket = openSocket("http://localhost:5000");
 
     socket.on('connect', () => {
     console.log("socket connected");
     socket.on('mybroadcast', (data) =>{
-        question["q"] = data['q'];
-        question["a"] = [data['c1'], data['c2'], data['c3'], data['c4']] 
+        let questions= {}
+        questions["q"] = data['q'];
+        questions["a"] = [data['c1'], data['c2'], data['c3'], data['c4']]
+        questions["ans"] = data["c1"]
+        questions["img"] = data["img"]
+        console.log(questions);
+        setQuestion(questions)
+        setAnswer("");
     });
+    
   });
   }, []);
   
@@ -96,30 +106,34 @@ function App() {
   const sendans = async e =>{
     console.log(e.target.choice.value);
   }
-  const listans = questions.a.map((ans, i) =>
+  const listans = question.a.map((ans, i) =>
   <Grid item xs={3} ><Button variant="contained" id={i} name={i} color="primary" onClick={(e) => saveAnswer(ans)} >{ans}</Button></Grid>);
-  
+  const imgsource = <img src={"http://localhost:5000" + question.img} />
+  var remark = <img src="http://localhost:5000/static/media/wrong.gif"></img>
+  console.log(imgsource)
+  if(answer){
+    if(question.ans == answer){
+      remark = <img src="http://localhost:5000/static/media/correct.gif"></img>
+    }
+  }
   if (quizcode && username && answer){
     return (
+      <div className={classes.root}>
       <Container component="main" className={classes.main} maxWidth="xs">
         <Typography>Quiz Code:{quizcode}</Typography>
         <Typography>Username:{username}</Typography>
         <Typography>Answer:{answer}</Typography>
         <form className={classes.form} onSubmit={handleUsername}>
-            <h1>Correct !!!!!</h1>
+        <h1>{remark}</h1>
         </form>
       </Container>
-      );
-  }
-  if (quizcode && username){
-    return (
-      <Container component="main" className={classes.main} maxWidth="xs">
-        <Typography>Quiz Code:{quizcode}</Typography>
-        <Typography>Username:{username}</Typography>
-        <form className={classes.form} onSubmit={handleUsername}>
-            <h1>Wait for Quiz to Start!!!</h1>
-        </form>
-      </Container>
+      <footer className={classes.footer}>
+        <Container maxWidth="sm">
+          <Typography variant="body1">Quiz Code:{quizcode} / Username:{username}</Typography>
+          <Copyright />
+        </Container>
+      </footer>
+      </div>
       );
   }
   if (quizcode && username && question){
@@ -128,13 +142,13 @@ function App() {
       <CssBaseline />
       <Container component="main" className={classes.main} maxWidth="sm">
         <Typography variant="h3" component="h2" gutterBottom>
-        {questions.q}
+        {question.q}
         </Typography>
         <Typography variant="h5" component="h2" gutterBottom>
         <Grid container spacing={3}>
         <Grid item xs={12}>
           <Paper className={classes.paper}>
-          <img src="https://images.news18.com/ibnlive/uploads/2020/12/1607657713_sports-1.png?impolicy=website&width=534&height=356" />
+          {imgsource}
           </Paper>
         </Grid>
           {listans}

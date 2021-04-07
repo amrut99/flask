@@ -3,6 +3,7 @@ from flask_socketio import SocketIO, emit, disconnect
 from flask_pymongo import PyMongo
 from threading import Lock
 import json
+from flask_cors import CORS, cross_origin
 import copy
 import os
 from werkzeug.utils import secure_filename
@@ -17,8 +18,10 @@ app.config['UPLOAD_FOLDER'] = 'static/media'
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024
 #app.config["MONGO_URI"] = "mongodb://localhost:27017/QuestionBank"
 mongoQ = PyMongo(app, "mongodb://localhost:27017/QuestionBank")
-socket_ = SocketIO(app, async_mode=async_mode)
-
+cors = CORS(app,resources={r"/api/*":{"origins":"*"}})
+app.host = '0.0.0.0'
+socket_ = SocketIO(app, cors_allowed_origins="*", async_mode=async_mode)
+CORS(app)
 thread = None
 thread_lock = Lock()
 
@@ -26,6 +29,7 @@ def allowed_file(filename):
 	return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 @app.route("/<quiz_code>")
+@cross_origin()
 def question_page(quiz_code):
     questions = mongoQ.db.producer.find({"qcode":quiz_code})
     all_questions = []
@@ -35,12 +39,18 @@ def question_page(quiz_code):
     return json.dumps(all_questions)
 
 @app.route("/post-answer/<quiz_code>",methods=['GET'])
+@cross_origin()
 def post_answer(quiz_code):
     return render_template('show_question.html')
 
 @socket_.on('connect')
 def quiz_connect():
     print("Connected succ")
+    emit('mybroadcast', json.dumps({
+    "q":"Who is V. Anand?",
+    "a":["cricketer","chess player","Soccer","Tennis"],
+    "ans":"chess player"
+  }), broadcast=True)
 
 @socket_.on('message')
 def quiz_message(message):
@@ -50,10 +60,14 @@ def quiz_message(message):
 @socket_.on('broadcast')
 def quiz_broadcast(message):
     session['receive_count'] = session.get('receive_count', 0) + 1
-    print(message['q'])
-    print(message['c1'])
     emit('mybroadcast', message, broadcast=True)
-    
+
+@socket_.on('answer')
+def record_answer(message):
+    # Record answer
+    print("Answer Submitted:")
+    print(message)
+
 
 @socket_.on('my_broadcast_event')
 def test_broadcast_message(message):
@@ -119,6 +133,7 @@ def save_question(quizcode=None):
                 imgpath=os.path.join(app.config['UPLOAD_FOLDER'], filename)
             else:
                 resp = 'Allowed file types are txt, pdf, png, jpg, jpeg, gif'
+        print(request.form['options'])
         mongoQ.db.producer.insert_one(
             {
                 'qcode':request.form['qcode'],
@@ -127,6 +142,7 @@ def save_question(quizcode=None):
                 'c2': request.form['c2'],
                 'c3': request.form['c3'],
                 'c4': request.form['c4'],
+                'ans': request.form[request.form['options']],
                 'img': imgpath
             }
         )
