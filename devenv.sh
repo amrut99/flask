@@ -9,3 +9,5 @@ sudo docker run -it -v mongodata:/data/db -p 27017:27017 --name mongodb -d mongo
 
 sudo docker exec -it mongodb bash
 mongo -host localhost -port 27017 
+
+gunicorn --worker-class eventlet -w 1 module:app

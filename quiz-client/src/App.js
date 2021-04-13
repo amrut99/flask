@@ -72,6 +72,9 @@ function App() {
     const socket = openSocket("http://localhost:5000");
 
     socket.on('connect', () => {
+    socket.emit('join_quiz',{'quiz': localStorage.getItem('quizcode'),
+      'username':localStorage.getItem('username')
+    });
     console.log("socket connected");
     socket.on('mybroadcast', (data) =>{
         let questions= {}

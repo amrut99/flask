@@ -16,13 +16,17 @@
 
     socket.on('connect', () => {
     console.log("socket connected");
+    socket.emit('join_quiz',{'quiz': document.getElementById("qcode").value,
+                                'username':document.getElementById("username").value
+                            });
     $("form").submit(function () {
             socket.emit('broadcast',{'q':document.getElementById("q").value,
                                       'c1':document.getElementById("c1").value,
                                       'c2':document.getElementById("c2").value,
                                       'c3':document.getElementById("c3").value,
                                       'c4':document.getElementById("c4").value,
-                                      'img':document.getElementById("qimage").getAttribute("src")
+                                      'img':document.getElementById("qimage").getAttribute("src"),
+                                      'quiz': document.getElementById("qcode").value
                                     }
             )
             return false;
@@ -40,6 +44,7 @@
             <p class="text-info">{{message}}</p>
             <p id="quizcode" class="text-primary">Quiz Code: {{quizcode}}</p>
                 <input type="hidden" name="qcode" id="qcode" value={{quizcode}}>
+                <input type="hidden" name="username" id="username" value={{username}}>
             <div class="form-group">
                 <label for="q" class="text-primary">Question:</label>
                 <input type="text" class="form-control" id="q" name="q" value="{{q}}">

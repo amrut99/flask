@@ -1,12 +1,21 @@
-from flask import Flask, request, redirect, jsonify, render_template, session, copy_current_request_context
-from flask_socketio import SocketIO, emit, disconnect
+import eventlet
+eventlet.monkey_patch()
+from flask import (
+    Flask, 
+    request, 
+    redirect, 
+    jsonify, 
+    render_template, 
+    session, 
+    copy_current_request_context)
+from flask_socketio import SocketIO, emit, disconnect, join_room, leave_room
 from flask_pymongo import PyMongo
 from threading import Lock
 import json
-from flask_cors import CORS, cross_origin
 import copy
 import os
 from werkzeug.utils import secure_filename
+
 
 ALLOWED_EXTENSIONS = set(['png', 'jpg', 'jpeg', 'gif'])
 async_mode = None
@@ -18,10 +27,9 @@ app.config['UPLOAD_FOLDER'] = 'static/media'
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024
 #app.config["MONGO_URI"] = "mongodb://localhost:27017/QuestionBank"
 mongoQ = PyMongo(app, "mongodb://localhost:27017/QuestionBank")
-cors = CORS(app,resources={r"/api/*":{"origins":"*"}})
 app.host = '0.0.0.0'
-socket_ = SocketIO(app, cors_allowed_origins="*", async_mode=async_mode)
-CORS(app)
+socket_ = SocketIO(app, message_queue='redis://localhost:6379', cors_allowed_origins="*", async_mode=async_mode)
+
 thread = None
 thread_lock = Lock()
 
@@ -29,7 +37,6 @@ def allowed_file(filename):
 	return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 @app.route("/<quiz_code>")
-@cross_origin()
 def question_page(quiz_code):
     questions = mongoQ.db.producer.find({"qcode":quiz_code})
     all_questions = []
@@ -39,7 +46,6 @@ def question_page(quiz_code):
     return json.dumps(all_questions)
 
 @app.route("/post-answer/<quiz_code>",methods=['GET'])
-@cross_origin()
 def post_answer(quiz_code):
     return render_template('show_question.html')
 
@@ -59,8 +65,10 @@ def quiz_message(message):
 
 @socket_.on('broadcast')
 def quiz_broadcast(message):
+    print("Broadcasting....")
     session['receive_count'] = session.get('receive_count', 0) + 1
-    emit('mybroadcast', message, broadcast=True)
+    print(message['quiz'])
+    emit('mybroadcast', message, room=message['quiz'])
 
 @socket_.on('answer')
 def record_answer(message):
@@ -68,6 +76,12 @@ def record_answer(message):
     print("Answer Submitted:")
     print(message)
 
+@socket_.on('join_quiz')
+def join_quiz(message):
+    print(message)
+    username = message['username']
+    room = message['quiz']
+    join_room(room)
 
 @socket_.on('my_broadcast_event')
 def test_broadcast_message(message):
@@ -76,6 +90,9 @@ def test_broadcast_message(message):
          {'data': message['data'], 'count': session['receive_count']},
          broadcast=True)
 
+@socket_.on('disconnect')
+def leave_quiz():
+    print("Client disconnected....")
 
 @socket_.on('disconnect_request', namespace='/ws/quizstart')
 def disconnect_request():
@@ -95,10 +112,13 @@ def post_question(qcode, nxt=None):
     if not nxt:
         nxt = 1
     questions = mongoQ.db.producer.find({"qcode":qcode})
+    print(questions)
     count = 1
     for q in questions:
+        print(q)
         if count == int(nxt):
             return render_template('post_question.html',quizcode=qcode,
+                                                    username="Amrut",
                                                    q=q['q'],
                                                    c1=q['c1'],
                                                    c2=q['c2'],
@@ -106,6 +126,7 @@ def post_question(qcode, nxt=None):
                                                    c4=q['c4'],
                                                    img="/"+q['img'])
         count = count + 1
+    print("Out of loop")
     return render_template('post_question.html',quizcode=qcode, message="No record Found!!")
 
 
@@ -149,7 +170,7 @@ def save_question(quizcode=None):
         resp="Question Added successfully"
         return render_template('producer.html', message=resp, quizcode=request.form['qcode'])
     if request.method == 'GET':
-        return render_template('producer.html',quizcode=quizcode)
+        return render_template('producer.html',quizcode=quizcode, username="Amrut")
 
 if __name__ == '__main__':
     socket_.run(app)
