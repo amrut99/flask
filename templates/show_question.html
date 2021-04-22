@@ -16,12 +16,16 @@
 
     socket.on('connect', () => {
     console.log("socket connected");
+    socket.emit('join_quiz',{'quiz': document.getElementById("qcode").value,
+                                'username':document.getElementById("username").value
+                            });
     socket.on('mybroadcast', (data) =>{
         document.getElementById("q").value = data['q'];
         document.getElementById("c1").innerText = data['c1'];
         document.getElementById("c2").innerText = data['c2'];
         document.getElementById("c3").innerText = data['c3'];
         document.getElementById("c4").innerText = data['c4'];
+        });
     });
 </script>
 </head>
@@ -33,15 +37,16 @@
         <form action="#" id="emit" method='POST'>
             <div class="form-group">
             <p class="text-info">{{message}}</p>
-            <p id="quizcode" class="text-primary">Quiz Code: {{quizcode}}</p>
+            <p id="quizcode" class="text-secondary">Quiz Code: {{quizcode}} / Username: {{username}}</p>
                 <input type="hidden" name="qcode" id="qcode" value={{quizcode}}>
+                <input type="hidden" name="username" id="username" value={{username}}>
             <div class="form-group">
                 <label for="q" class="text-primary">Question:</label>
                 <input type="text" class="form-control" id="q" name="q" value="{{q}}">
             </div>
             <div class="row">
                 <div class="col">
-                    <label for="file" class="text-primary">Upload Image if any</label>
+                    <label for="file" class="text-primary">Image</label>
                    <img class="img-thumbnail" src="{{img}}">
                 </div> 
             </div>   

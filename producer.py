@@ -1,4 +1,5 @@
 import eventlet
+import hashlib
 eventlet.monkey_patch()
 from flask import (
     Flask, 
@@ -14,6 +15,7 @@ from threading import Lock
 import json
 import copy
 import os
+import datetime
 from werkzeug.utils import secure_filename
 
 
@@ -27,14 +29,59 @@ app.config['UPLOAD_FOLDER'] = 'static/media'
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024
 #app.config["MONGO_URI"] = "mongodb://localhost:27017/QuestionBank"
 mongoQ = PyMongo(app, "mongodb://localhost:27017/QuestionBank")
+mongoUser = PyMongo(app, "mongodb://localhost:27017/Users")
 app.host = '0.0.0.0'
 socket_ = SocketIO(app, message_queue='redis://localhost:6379', cors_allowed_origins="*", async_mode=async_mode)
-
+salt = "9wgt"
 thread = None
 thread_lock = Lock()
 
 def allowed_file(filename):
 	return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+@app.route("/signup", methods=['GET','POST'])
+def signup():
+    if request.method == 'GET':
+        return render_template('signup.html')
+    elif request.method == 'POST':
+        db_password = hashlib.sha224((request.form["password"]+salt).encode()).hexdigest()
+        user = mongoUser.db.users.insert_one({"username":request.form["username"],"password":db_password})
+        if user:
+            return render_template('signup.html',message='Your account is successfully created.')
+        else:
+            return render_template('signup.html',message='Something went wrong!!!')
+
+@app.route("/quiz", methods=['GET', 'POST'])
+def start_quiz():
+    if request.method == 'GET':
+        return render_template('join_quiz.html')
+    elif request.method == 'POST':
+        qc = request.form['quizcode']
+        uname = request.form['uname']
+        quiz = mongoQ.db.producer.find_one({"qcode":qc})
+        if quiz:
+            if uname.strip() == "":
+                uname = "player " + str(datetime.datetime.now().microsecond)
+            return render_template('show_question.html',quizcode=qc, username=uname)
+        else:
+            return render_template('join_quiz.html', message="The quiz code does not exist!!")
+
+
+@app.route("/login", methods=['GET','POST'])
+def login():
+    if request.method == 'GET':
+        if session['loggedin'] == True:
+            return render_template('login.html', message="You are already logged in..")
+        return render_template('login.html')
+    elif request.method == 'POST':
+        db_password = hashlib.sha224((request.form["password"]+salt).encode()).hexdigest()
+        user = mongoUser.db.users.find_one({"username":request.form["username"],"password":db_password})
+        if user:
+            session['loggedin'] = True
+            return render_template('login.html',message='You are successfully logged in.')
+        else:
+            session['loggedin'] = False
+            return render_template('login.html',message='Login failed!!!')
 
 @app.route("/<quiz_code>")
 def question_page(quiz_code):
