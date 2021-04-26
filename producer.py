@@ -28,10 +28,10 @@ app.secret_key = "secret key"
 app.config['UPLOAD_FOLDER'] = 'static/media'
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024
 #app.config["MONGO_URI"] = "mongodb://localhost:27017/QuestionBank"
-mongoQ = PyMongo(app, "mongodb://localhost:27017/QuestionBank")
-mongoUser = PyMongo(app, "mongodb://localhost:27017/Users")
+mongoQ = PyMongo(app, "mongodb://mongodb:27017/QuestionBank")
+mongoUser = PyMongo(app, "mongodb://mongodb:27017/Users")
 app.host = '0.0.0.0'
-socket_ = SocketIO(app, message_queue='redis://localhost:6379', cors_allowed_origins="*", async_mode=async_mode)
+socket_ = SocketIO(app, message_queue='redis://redis:6379', cors_allowed_origins="*", async_mode=async_mode)
 salt = "9wgt"
 thread = None
 thread_lock = Lock()
@@ -70,9 +70,12 @@ def start_quiz():
 @app.route("/login", methods=['GET','POST'])
 def login():
     if request.method == 'GET':
-        if session['loggedin'] == True:
-            return render_template('login.html', message="You are already logged in..")
-        return render_template('login.html')
+        try:
+            if session['loggedin'] == True:
+                return render_template('login.html', message="You are already logged in..")
+            return render_template('login.html')
+        except KeyError:
+            return render_template('login.html')
     elif request.method == 'POST':
         db_password = hashlib.sha224((request.form["password"]+salt).encode()).hexdigest()
         user = mongoUser.db.users.find_one({"username":request.form["username"],"password":db_password})
@@ -94,7 +97,7 @@ def question_page(quiz_code):
 
 @app.route("/post-answer/<quiz_code>",methods=['GET'])
 def post_answer(quiz_code):
-    return render_template('show_question.html')
+    return render_template('post_answer.html')
 
 @socket_.on('connect')
 def quiz_connect():
@@ -176,6 +179,18 @@ def post_question(qcode, nxt=None):
     print("Out of loop")
     return render_template('post_question.html',quizcode=qcode, message="No record Found!!")
 
+@app.route("/post-questions/<qcode>", methods=['GET'])
+def post_questions(qcode):
+    return render_template('post_question_v.html',quizcode=qcode)
+
+@app.route("/get-questions/<qcode>", methods=['GET'])
+def get_questions(qcode):
+    questions = mongoQ.db.producer.find({"qcode":qcode})
+    allquestions = [q for q in questions]
+    return json.dumps(allquestions, default=str)
+    
+
+
 
 @app.route("/uploads/", methods=['POST', 'GET'])
 @app.route("/uploads/<quizcode>", methods=['POST', 'GET'])
@@ -198,7 +213,7 @@ def save_question(quizcode=None):
                 filename = secure_filename(file.filename)
                 file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
                 resp = jsonify({'message' : 'File successfully uploaded'})
-                imgpath=os.path.join(app.config['UPLOAD_FOLDER'], filename)
+                imgpath="/" + app.config['UPLOAD_FOLDER']+"/"+filename
             else:
                 resp = 'Allowed file types are txt, pdf, png, jpg, jpeg, gif'
         print(request.form['options'])

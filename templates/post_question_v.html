@@ -7,13 +7,14 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+  <link rel="stylesheet" href="/static/custom.css">
   <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.16.0/umd/popper.min.js"></script>
   <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
   <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
   <script type="text/javascript" charset="utf-8">
    const socket = io('http://localhost:5000')
-
+   var allquestions;
     socket.on('connect', () => {
     console.log("socket connected");
     socket.emit('join_quiz',{'quiz': document.getElementById("qcode").value,
@@ -32,31 +33,65 @@
             return false;
         });
     });
+    $( document ).ready(function() {
+        console.log( "Fetch all the questions" );
+        qcode = document.getElementById("qcode").value
+        $.getJSON( "http://localhost:5000/get-questions/"+qcode, function( data ) {       
+            allquestions = data;
+            });
+    });
+    var getNext = function(){
+            console.log("getnext called.")
+            qno=parseInt(document.getElementById("qno").value) - 1
+            if(allquestions.length > qno){
+                document.getElementById("q").value = allquestions[qno].q
+                document.getElementById("c1").value = allquestions[qno].c1
+                document.getElementById("c2").value = allquestions[qno].c2
+                document.getElementById("c3").value = allquestions[qno].c3
+                document.getElementById("c4").value = allquestions[qno].c4
+                //document.getElementById("qimage").getAttribute("src") = allquestions[qno].img
+                $("#qimage").attr("src", allquestions[qno].img)
+                console.log(allquestions[qno].img)
+
+                qno = qno + 2
+                console.log(qno)
+                document.getElementById("qno").value = qno
+            }
+            else{
+                document.getElementById("message").innerHTML = "<b>There are no more questions!!!</b>"
+            }
+                                   
+        };
 </script>
+
 </head>
 <body>
-        <div class="container">
+        <div class="container2">
           <h3 class="display-4" id="question">Post Question</h3>
         </div>
     <div class="container">
         <div class="row">
             <div class="col">
-                <button type="button" class="btn btn-primary">Get Next Question</button>
+                <button type="button" class="btn btn-primary" id="getnext" onclick="getNext()">Get Next Question</button>
             </div> 
         </div>
         <form action="#" id="emit" method='POST'>
             <div class="form-group">
-            <p class="text-info">{{message}}</p>
+            <p class="text-info" id="message">{{message}}</p>
             <p id="quizcode" class="text-primary">Quiz Code: {{quizcode}}</p>
                 <input type="hidden" name="qcode" id="qcode" value={{quizcode}}>
                 <input type="hidden" name="username" id="username" value={{username}}>
+            <div class="form-group">
+                <label for="qno" class="text-primary">Question No:</label>
+                <input type="text" class="form-control" id="qno" name="qno" value="1">
+            </div>
             <div class="form-group">
                 <label for="q" class="text-primary">Question:</label>
                 <input type="text" class="form-control" id="q" name="q" value="{{q}}">
             </div>
             <div class="row">
                 <div class="col">
-                    <label for="file" class="text-primary">Upload Image if any</label>
+                    <label for="file" class="text-primary">Image</label>
                    <img class="img-thumbnail" name="qimage" id="qimage" src="{{img}}"/>
                 </div> 
             </div>   
@@ -97,9 +132,6 @@
             <div class="row">
                 <div class="col">
                     <button type="submit" class="btn btn-primary">Post To All</button>
-                </div> 
-                <div class="col">
-                    <button type="submit" class="btn btn-primary">Get Next Question</button>
                 </div> 
             </div> 
         </div>
