@@ -12,21 +12,48 @@
   <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
   <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
   <script type="text/javascript" charset="utf-8">
-   const socket = io('http://localhost:5000')
+  var socket
+  $(document).ready(function(){
+    var host = "http://localhost"
+    host = $(location).attr("origin");  
+    socket = io(host)
 
     socket.on('connect', () => {
     console.log("socket connected");
     socket.emit('join_quiz',{'quiz': document.getElementById("qcode").value,
                                 'username':document.getElementById("username").value
                             });
-    socket.on('mybroadcast', (data) =>{
-        document.getElementById("q").value = data['q'];
-        document.getElementById("c1").innerText = data['c1'];
-        document.getElementById("c2").innerText = data['c2'];
-        document.getElementById("c3").innerText = data['c3'];
-        document.getElementById("c4").innerText = data['c4'];
-        });
+        socket.on('mybroadcast', (data) =>{
+            $("#emit").show(500)
+            document.getElementById("q").value = data['q'];
+            document.getElementById("c1").innerText = data['c1'];
+            document.getElementById("c2").innerText = data['c2'];
+            document.getElementById("c3").innerText = data['c3'];
+            document.getElementById("c4").innerText = data['c4'];
+            document.getElementById("qid").value = data['qid'];
+            $("#qimage").attr("src", data['img']);
+            $("#myanswer").attr("src", "")
+            });
+        socket.on('leaderboard', (data) => {
+            if(data["answer"] == 1){
+                $("#myanswer").attr("src", "/static/media/correct.gif")
+            }
+            else{
+                $("#myanswer").attr("src", "/static/media/wrong.gif")
+            }
+        })
     });
+   
+});
+var submitAnswer = function(answer){
+        socket.emit('answer',{'qcode': document.getElementById("qcode").value,
+                              'username':document.getElementById("username").value,
+                              'answer':answer,
+                              'question':document.getElementById("qid").value
+                            })
+        $("#emit").hide(500)
+
+    }
 </script>
 </head>
 <body>
@@ -34,12 +61,14 @@
           <h3 class="display-4" id="question">Answer this Question</h3>
         </div>
     <div class="container">
+        <img id="myanswer" class="img-thumbnail" src="">
         <form action="#" id="emit" method='POST'>
             <div class="form-group">
             <p class="text-info">{{message}}</p>
             <p id="quizcode" class="text-secondary">Quiz Code: {{quizcode}} / Username: {{username}}</p>
                 <input type="hidden" name="qcode" id="qcode" value={{quizcode}}>
                 <input type="hidden" name="username" id="username" value={{username}}>
+                <input type="hidden" name="qid" id="qid" value="0">
             <div class="form-group">
                 <label for="q" class="text-primary">Question:</label>
                 <input type="text" class="form-control" id="q" name="q" value="{{q}}">
@@ -47,31 +76,31 @@
             <div class="row">
                 <div class="col">
                     <label for="file" class="text-primary">Image</label>
-                   <img class="img-thumbnail" src="{{img}}">
+                   <img id="qimage" name="qimage" class="img-thumbnail" src="{{img}}">
                 </div> 
             </div>   
             <label for="a" class="text-primary">Answer Choices</label>
             <div class="row">
                 <div class="col">
                     <div class="form-group">
-                        <button type="button" class="btn btn-info" id="c1" name="c1" onclick="socket.emit('answer',{'a':this.innerText});"></button>
+                        <button type="button" class="btn btn-info" id="c1" name="c1" onclick="submitAnswer(this.innerText);"></button>
                     </div> 
                 </div>
                 <div class="col">
                     <div class="form-group">
-                        <button type="button" class="btn btn-info" id="c2" name="c2"  onclick="socket.emit('answer',{'a':this.innerText});"></button>
+                        <button type="button" class="btn btn-info" id="c2" name="c2"  onclick="submitAnswer(this.innerText);"></button>
                     </div> 
                 </div>
             </div> 
             <div class="row">
                 <div class="col">
                     <div class="form-group">
-                        <button type="button" class="btn btn-info" id="c3" name="c3"  onclick="socket.emit('answer',{'a':this.innerText});"></button>
+                        <button type="button" class="btn btn-info" id="c3" name="c3"  onclick="submitAnswer(this.innerText);"></button>
                     </div> 
                 </div>
                 <div class="col">
                     <div class="form-group">
-                        <button type="button" class="btn btn-info" id="c4" name="c4"  onclick="socket.emit('answer',{'a':this.innerText});"></button>
+                        <button type="button" class="btn btn-info" id="c4" name="c4"  onclick="submitAnswer(this.innerText);"></button>
                     </div> 
                 </div>
             </div> 

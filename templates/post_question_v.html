@@ -13,8 +13,21 @@
   <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
   <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
   <script type="text/javascript" charset="utf-8">
-   const socket = io('http://localhost:5000')
-   var allquestions;
+  var allquestions ={}
+  var socket = null
+  $(document).ready(function(){
+    var host = "http://localhost"
+    
+    host = $(location).attr("origin");
+
+    // document.getElementById("participants").innerHTML = host + "/post-answers/" + document.getElementById("participants").innerHTML
+    qcode = document.getElementById("qcode").value
+    $.getJSON( host + "/get-questions/"+qcode, function( data ) {       
+        allquestions = data;
+        console.log("get allq")
+        console.log(allquestions)
+        });
+    socket = io(host)
     socket.on('connect', () => {
     console.log("socket connected");
     socket.emit('join_quiz',{'quiz': document.getElementById("qcode").value,
@@ -27,21 +40,15 @@
                                       'c3':document.getElementById("c3").value,
                                       'c4':document.getElementById("c4").value,
                                       'img':document.getElementById("qimage").getAttribute("src"),
-                                      'quiz': document.getElementById("qcode").value
+                                      'quiz': document.getElementById("qcode").value,
+                                      'qid': document.getElementById("qid").value
                                     }
             )
             return false;
         });
     });
-    $( document ).ready(function() {
-        console.log( "Fetch all the questions" );
-        qcode = document.getElementById("qcode").value
-        $.getJSON( "http://localhost:5000/get-questions/"+qcode, function( data ) {       
-            allquestions = data;
-            });
-    });
-    var getNext = function(){
-            console.log("getnext called.")
+  });
+  var getNext = function(){
             qno=parseInt(document.getElementById("qno").value) - 1
             if(allquestions.length > qno){
                 document.getElementById("q").value = allquestions[qno].q
@@ -49,6 +56,7 @@
                 document.getElementById("c2").value = allquestions[qno].c2
                 document.getElementById("c3").value = allquestions[qno].c3
                 document.getElementById("c4").value = allquestions[qno].c4
+                document.getElementById("qid").value = allquestions[qno]._id
                 //document.getElementById("qimage").getAttribute("src") = allquestions[qno].img
                 $("#qimage").attr("src", allquestions[qno].img)
                 console.log(allquestions[qno].img)
@@ -66,12 +74,21 @@
 
 </head>
 <body>
+    <nav class="navbar navbar-expand-sm bg-primary navbar-dark">
+        <ul class="navbar-nav">
+          <li class="nav-item">
+            <a class="nav-link" href="/logout">Logout {{username}}</a>
+          </li>
+        </ul>
+      </nav>
         <div class="container2">
-          <h3 class="display-4" id="question">Post Question</h3>
+          <h4 class="display-4" id="question">Post Question to Quiz {{quizcode}}</h4>
         </div>
     <div class="container">
         <div class="row">
             <div class="col">
+                <!-- <p>Share this link with participants </p>
+                <p id="participants">{{qroom}}</p> -->
                 <button type="button" class="btn btn-primary" id="getnext" onclick="getNext()">Get Next Question</button>
             </div> 
         </div>
@@ -81,6 +98,7 @@
             <p id="quizcode" class="text-primary">Quiz Code: {{quizcode}}</p>
                 <input type="hidden" name="qcode" id="qcode" value={{quizcode}}>
                 <input type="hidden" name="username" id="username" value={{username}}>
+                <input type="hidden" name="qid" id="qid" value="0">
             <div class="form-group">
                 <label for="qno" class="text-primary">Question No:</label>
                 <input type="text" class="form-control" id="qno" name="qno" value="1">

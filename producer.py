@@ -16,6 +16,7 @@ import json
 import copy
 import os
 import datetime
+from bson.objectid import ObjectId
 from werkzeug.utils import secure_filename
 
 
@@ -28,16 +29,28 @@ app.secret_key = "secret key"
 app.config['UPLOAD_FOLDER'] = 'static/media'
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024
 #app.config["MONGO_URI"] = "mongodb://localhost:27017/QuestionBank"
-mongoQ = PyMongo(app, "mongodb://mongodb:27017/QuestionBank")
-mongoUser = PyMongo(app, "mongodb://mongodb:27017/Users")
+mongoQ = PyMongo(app, "mongodb://localhost:27017/QuestionBank")
+mongoL = PyMongo(app, "mongodb://localhost:27017/LeaderBoard")
+mongoUser = PyMongo(app, "mongodb://localhost:27017/Users")
 app.host = '0.0.0.0'
-socket_ = SocketIO(app, message_queue='redis://redis:6379', cors_allowed_origins="*", async_mode=async_mode)
+socket_ = SocketIO(app, message_queue='redis://localhost:6379', cors_allowed_origins="*", async_mode=async_mode)
 salt = "9wgt"
 thread = None
 thread_lock = Lock()
 
+def is_authenticated():
+    try:
+        print(session['loggedin'])
+        if not session['loggedin'] == "":
+            user = mongoUser.db.users.find_one({"_id":ObjectId(session['loggedin'])})
+            if user:
+               return user
+    except KeyError:
+        pass
+    return None
+
 def allowed_file(filename):
-	return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 @app.route("/signup", methods=['GET','POST'])
 def signup():
@@ -51,7 +64,18 @@ def signup():
         else:
             return render_template('signup.html',message='Something went wrong!!!')
 
-@app.route("/quiz", methods=['GET', 'POST'])
+@app.route("/quiz", methods=['GET'])
+def create_quiz():
+    if request.method =='GET':
+        user = is_authenticated()
+        if not user:
+            return render_template('login.html', message="Please login to create new quiz")
+        questions = mongoQ.db.producer.find({'owner':user['username']})
+        allquizes = set([q['qcode'] for q in questions])
+        return render_template("create_quiz.html", username=user['username'], allquizes=allquizes)
+
+
+@app.route("/", methods=['GET', 'POST'])
 def start_quiz():
     if request.method == 'GET':
         return render_template('join_quiz.html')
@@ -62,7 +86,7 @@ def start_quiz():
         if quiz:
             if uname.strip() == "":
                 uname = "player " + str(datetime.datetime.now().microsecond)
-            return render_template('show_question.html',quizcode=qc, username=uname)
+            return render_template('post_answer.html',quizcode=qc, username=uname)
         else:
             return render_template('join_quiz.html', message="The quiz code does not exist!!")
 
@@ -71,19 +95,27 @@ def start_quiz():
 def login():
     if request.method == 'GET':
         try:
-            if session['loggedin'] == True:
-                return render_template('login.html', message="You are already logged in..")
+            print(session['loggedin'])
+            if not session['loggedin'] == "":
+                user = mongoUser.db.users.find_one({"_id":ObjectId(session['loggedin'])})
+                if user:
+                    questions = mongoQ.db.producer.find({'owner':user['username']})
+                    allquizes = [q['qcode'] for q in questions]
+                    return render_template('create_quiz.html', username=user['username'], allquizes=allquizes)
+                else:
+                    return render_template('login.html')
             return render_template('login.html')
         except KeyError:
             return render_template('login.html')
     elif request.method == 'POST':
         db_password = hashlib.sha224((request.form["password"]+salt).encode()).hexdigest()
         user = mongoUser.db.users.find_one({"username":request.form["username"],"password":db_password})
+        print(user)
         if user:
-            session['loggedin'] = True
+            session['loggedin'] = str(user['_id'])
             return render_template('login.html',message='You are successfully logged in.')
         else:
-            session['loggedin'] = False
+            session['loggedin'] = ""
             return render_template('login.html',message='Login failed!!!')
 
 @app.route("/<quiz_code>")
@@ -108,10 +140,10 @@ def quiz_connect():
     "ans":"chess player"
   }), broadcast=True)
 
-@socket_.on('message')
-def quiz_message(message):
-    session['receive_count'] = session.get('receive_count', 0) + 1
-    print(message['q'])
+# @socket_.on('message')
+# def quiz_message(message):
+#     session['receive_count'] = session.get('receive_count', 0) + 1
+#     print(message['q'])
 
 @socket_.on('broadcast')
 def quiz_broadcast(message):
@@ -123,8 +155,31 @@ def quiz_broadcast(message):
 @socket_.on('answer')
 def record_answer(message):
     # Record answer
+    resp = {}
     print("Answer Submitted:")
     print(message)
+    question = mongoQ.db.producer.find_one({"_id":ObjectId(message['question'])})
+    if message['answer'] == question['ans']:
+        resp['answer'] = 1
+        # Add to leaderboard
+        mongoL.db.leaderboard.insert_one({
+            "date": datetime.datetime.now().strftime("%Y%m%d"),
+            "qcode": message["qcode"],
+            "username": message["username"],
+            "q":message["question"],
+            "answer": 1
+        })
+        emit('leaderboard', resp)
+    else:
+        mongoL.db.leaderboard.insert_one({
+            "date": datetime.datetime.now().strftime("%Y%m%d"),
+            "qcode": message["qcode"],
+            "username": message["username"],
+            "q":message["question"],
+            "answer": 0
+        })
+        resp['answer'] = 0
+        emit('leaderboard', resp)
 
 @socket_.on('join_quiz')
 def join_quiz(message):
@@ -133,12 +188,12 @@ def join_quiz(message):
     room = message['quiz']
     join_room(room)
 
-@socket_.on('my_broadcast_event')
-def test_broadcast_message(message):
-    session['receive_count'] = session.get('receive_count', 0) + 1
-    emit('my_response',
-         {'data': message['data'], 'count': session['receive_count']},
-         broadcast=True)
+# @socket_.on('my_broadcast_event')
+# def test_broadcast_message(message):
+#     session['receive_count'] = session.get('receive_count', 0) + 1
+#     emit('my_response',
+#          {'data': message['data'], 'count': session['receive_count']},
+#          broadcast=True)
 
 @socket_.on('disconnect')
 def leave_quiz():
@@ -155,50 +210,84 @@ def disconnect_request():
          {'data': 'Disconnected!', 'count': session['receive_count']},
          callback=can_disconnect)
 
-@app.route("/post-question/<qcode>/<nxt>", methods=['GET'])
-@app.route("/post-question/<qcode>", methods=['GET'])
-def post_question(qcode, nxt=None):
-    print(nxt)
-    if not nxt:
-        nxt = 1
-    questions = mongoQ.db.producer.find({"qcode":qcode})
-    print(questions)
-    count = 1
-    for q in questions:
-        print(q)
-        if count == int(nxt):
-            return render_template('post_question.html',quizcode=qcode,
-                                                    username="Amrut",
-                                                   q=q['q'],
-                                                   c1=q['c1'],
-                                                   c2=q['c2'],
-                                                   c3=q['c3'],
-                                                   c4=q['c4'],
-                                                   img="/"+q['img'])
-        count = count + 1
-    print("Out of loop")
-    return render_template('post_question.html',quizcode=qcode, message="No record Found!!")
-
+# @app.route("/post-question/<qcode>/<nxt>", methods=['GET'])
+# @app.route("/post-question/<qcode>", methods=['GET'])
+# def post_question(qcode, nxt=None):
+#     print(nxt)
+#     if not nxt:
+#         nxt = 1
+#     questions = mongoQ.db.producer.find({"qcode":qcode})
+#     print(questions)
+#     count = 1
+#     for q in questions:
+#         print(q)
+#         if count == int(nxt):
+#             return render_template('post_question.html',quizcode=qcode,
+#                                                     username="Amrut",
+#                                                    q=q['q'],
+#                                                    c1=q['c1'],
+#                                                    c2=q['c2'],
+#                                                    c3=q['c3'],
+#                                                    c4=q['c4'],
+#                                                    img="/"+q['img'])
+#         count = count + 1
+#     print("Out of loop")
+#     return render_template('post_question.html',quizcode=qcode, message="No record Found!!")
 @app.route("/post-questions/<qcode>", methods=['GET'])
 def post_questions(qcode):
-    return render_template('post_question_v.html',quizcode=qcode)
+    user = is_authenticated()
+    if user:
+        qroom = hashlib.sha224((user["username"]+qcode).encode()).hexdigest()
+        return render_template('post_question_v.html',quizcode=qcode, username=user["username"], qroom=qroom)
+    else:
+        return render_template('login.html',message='Please login to post questions.')
 
+@app.route("/logout", methods=['GET'])
+def logout():
+    try:
+        del session['loggedin']
+        return render_template('login.html',message='You are logged out. Do you want to Login again?')
+    except KeyError:
+        return render_template('login.html',message='Please login to logout again.')
+#
+#
+# All Ajax APIs
+#
+#
 @app.route("/get-questions/<qcode>", methods=['GET'])
 def get_questions(qcode):
-    questions = mongoQ.db.producer.find({"qcode":qcode})
-    allquestions = [q for q in questions]
-    return json.dumps(allquestions, default=str)
-    
+    user = is_authenticated()
+    if user:
+        questions = mongoQ.db.producer.find({"qcode":qcode, "owner":user["username"]})
+        allquestions = [q for q in questions]
+        return json.dumps(allquestions, default=str)
+    else:
+        return json.dumps({})
 
+# def get_quizes():
+#     user = is_authenticated()
+#     if not user:
+#         return None
+#     else:
+#         questions = mongoQ.db.producer.find({'owner':user['username']})
+#         all_quiz = {}
+
+#         for q in questions:
+#             if not q['qcode'] in all_quiz:
+#                 all_quiz[q['qcode']] = 1
+#         return json.dumps(all_quiz, default=str)
 
 
 @app.route("/uploads/", methods=['POST', 'GET'])
 @app.route("/uploads/<quizcode>", methods=['POST', 'GET'])
 def save_question(quizcode=None):
 # check if the post request has the file part
+    user = is_authenticated()
     if request.method == 'POST':
         imgpath = ""
         resp = ""
+        if not user:
+            return render_template("login.html", message="Please login to create quiz.")
         print(request.form)
         if 'file' not in request.files:
             imgpath="/"
@@ -226,13 +315,21 @@ def save_question(quizcode=None):
                 'c3': request.form['c3'],
                 'c4': request.form['c4'],
                 'ans': request.form[request.form['options']],
-                'img': imgpath
+                'img': imgpath,
+                'owner': user['username']
             }
         )
         resp="Question Added successfully"
         return render_template('producer.html', message=resp, quizcode=request.form['qcode'])
     if request.method == 'GET':
-        return render_template('producer.html',quizcode=quizcode, username="Amrut")
+        if user:
+            # Check is quizcode is unique]
+            quiz = mongoQ.db.producer.find_one({'$and':[{'qcode':quizcode},{'owner':{'$ne':user['username']}}]})
+            if quiz:
+                return render_template('create_quiz.html', message="The quiz name is not unique!!! Add some more characters to the name")
+            return render_template('producer.html',quizcode=quizcode, username=user['username'])
+        else:
+            return render_template('login.html', message="Please login to create a new quiz..")
 
 if __name__ == '__main__':
     socket_.run(app)

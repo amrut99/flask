@@ -1,0 +1,58 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8"/>
+    <title>Quiz Question</title>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+  <link rel="stylesheet" href="/static/custom.css">
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.16.0/umd/popper.min.js"></script>
+  <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+  <script>
+      $(document).ready(function(){
+        defaultValue=Math.random().toString(36).slice(2)
+        document.getElementById("quizcode").value = defaultValue
+        // Get all quizes
+        });
+      var createQuiz = function(){
+        qcode = document.getElementById("quizcode").value
+        window.location.replace('/uploads/'+qcode); 
+      }
+
+  </script>
+</head>
+<body>
+    <nav class="navbar navbar-expand-sm bg-primary navbar-dark">
+        <ul class="navbar-nav">
+          <li class="nav-item">
+            <a class="nav-link" href="/logout">Logout {{username}}</a>
+          </li>
+        </ul>
+      </nav>
+      <form action="#" id="emit" method='POST'>
+        <div class="form-group">
+          <p class="text-warning">{{message}}</p>
+          <h3 class="display-4" id="question">Create New Quiz</h3>
+          <p class="text-info">You will have to create a new quiz and then that
+              that quiz link will show up in the list below under the menu "My Quizes". Using that link you can conduct the quiz.
+              Share the name of the quiz with all the participants.
+          </p>
+                <label for="quizcode" class="text-primary">Quiz Code (Give Some name to your quiz):</label>
+                <input type="text" class="form-control" id="quizcode" name="quizcode" value="newquiz">
+                <button type="button" class="btn btn-info" id="newquiz" name="newquiz"  onclick="createQuiz();">Create New Quiz</button>
+            <h3 class="display-4" id="question">Conduct from Your Quiz</h3>    
+                <p>My Quizes (Follow link to post quiz to all)</p>
+                    <ul>
+                        {% for q in allquizes%}
+                        <li>
+                            <a href="/post-questions/{{q}}">{{q}}</a> 
+                        </li>
+                        {% endfor%}
+                    </ul>
+        </div>
+        </form>
+    </body>
+</html>
