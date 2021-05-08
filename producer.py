@@ -21,7 +21,6 @@ from werkzeug.utils import secure_filename
 
 
 ALLOWED_EXTENSIONS = set(['png', 'jpg', 'jpeg', 'gif'])
-async_mode = None
 
 app = Flask(__name__)
 app.config['SECRET_KEY']='thisistopsecret'
@@ -33,7 +32,7 @@ mongoQ = PyMongo(app, "mongodb://localhost:27017/QuestionBank")
 mongoL = PyMongo(app, "mongodb://localhost:27017/LeaderBoard")
 mongoUser = PyMongo(app, "mongodb://localhost:27017/Users")
 app.host = '0.0.0.0'
-socket_ = SocketIO(app, message_queue='redis://localhost:6379', cors_allowed_origins="*", async_mode=async_mode)
+socket_ = SocketIO(app, message_queue='redis://localhost:6379', cors_allowed_origins="*")
 salt = "9wgt"
 thread = None
 thread_lock = Lock()
