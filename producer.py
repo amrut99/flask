@@ -310,7 +310,7 @@ def save_question(quizcode=None):
             if file.filename == '':
                 resp = 'No file selected for uploading'
             if file and allowed_file(file.filename):
-                filename = secure_filename(file.filename)
+                filename = "{}-{}".format(request.form['qcode'], secure_filename(file.filename))
                 file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
                 resp = jsonify({'message' : 'File successfully uploaded'})
                 imgpath="/" + app.config['UPLOAD_FOLDER']+"/"+filename
