@@ -67,6 +67,9 @@ function App() {
   const [answer, setAnswer] = useState("");
   const [question, setQuestion] = useState(default_question);
 
+  const [adminmode, setProducer] = useState(false);
+
+
   
   useEffect(() => {
     const socket = openSocket("http://localhost:5000");
@@ -200,6 +203,7 @@ function App() {
     
     );
   }
+  // Primary screen
   return (
     <Container component="main" className={classes.main} maxWidth="xs">
     <form className={classes.form} onSubmit={handleSubmit}>

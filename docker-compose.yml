@@ -1,0 +1,30 @@
+version: '3.7'
+
+services:
+  web:
+    build: .
+    command: flask run -h 0.0.0.0
+    volumes:
+      - .:/usr/src/app/
+    ports:
+      - 5000:5000
+    env_file:
+      - ./.env.dev
+    depends_on: 
+      - mongodb
+      - redis
+
+  mongodb:
+    image: mongo:latest
+    container_name: mongodb
+    ports:
+        - '27017:27017'
+    volumes:
+      - db-data:/data/db
+  redis:
+    image: redis:4.0
+    container_name: redis
+    ports:
+      - "6379:6379"
+volumes:
+  db-data:

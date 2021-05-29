@@ -11,3 +11,6 @@ sudo docker exec -it mongodb bash
 mongo -host localhost -port 27017 
 
 gunicorn --worker-class eventlet -w 1 module:app
+
+export FLASK_APP=producer
+export FLASK_ENV=development

@@ -59,7 +59,7 @@ def signup():
         db_password = hashlib.sha224((request.form["password"]+salt).encode()).hexdigest()
         user = mongoUser.db.users.insert_one({"username":request.form["username"],"password":db_password})
         if user:
-            return render_template('signup.html',message='Your account is successfully created.')
+            return render_template('login.html',message='Your account is successfully created. Now you can login.')
         else:
             return render_template('signup.html',message='Something went wrong!!!')
 
@@ -112,7 +112,7 @@ def login():
         print(user)
         if user:
             session['loggedin'] = str(user['_id'])
-            return render_template('login.html',message='You are successfully logged in.')
+            return render_template("create_quiz.html", username=user['username'], allquizes=allquizes)
         else:
             session['loggedin'] = ""
             return render_template('login.html',message='Login failed!!!')
@@ -129,6 +129,18 @@ def question_page(quiz_code):
 @app.route("/post-answer/<quiz_code>",methods=['GET'])
 def post_answer(quiz_code):
     return render_template('post_answer.html')
+
+@app.route("/leaderboards/<quiz_code>", methods=['GET'])
+def get_leaderboards(quiz_code):
+     # Create leaderboard
+    players = mongoL.db.leaderboard.aggregate([
+        {'$match': {'qcode':quiz_code}},
+        {'$group': {'_id':'$username','total':{'$sum':'$answer'}}}
+    ])
+    leaders = {}
+    for p in players:
+        leaders[p["_id"]] = p["total"]
+    return json.dumps(leaders)
 
 @socket_.on('connect')
 def quiz_connect():
