@@ -60,9 +60,9 @@
       
     <p class="text-info">When you create quiz using the "Create New Quiz" section. That quiz will <br> 
       show in the list below use that link to conduct the quiz. </p>
-        <ul>
+        <ul class="list-group">
             {% for q in allquizes%}
-            <li>
+            <li class="list-group-item">
                 <a href="/post-questions/{{q}}">{{q}}</a> 
             </li>
             {% endfor%}

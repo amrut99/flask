@@ -42,6 +42,19 @@
                 $("#myanswer").attr("src", "/static/media/wrong.gif")
             }
         })
+        socket.on('all_leaderboard', (data)=>{
+            let table_head = "<table class='table table-striped'> \
+                    <thead> \
+                      <tr> \
+                        <th>User Name</th> \
+                        <th>Score</th> \
+                      </tr> \
+                    </thead> \
+                    <tbody>"
+            let table_foot = "</tbody></table>"
+            console.log(table_head + data + table_foot)
+            $('#leaderboard').html(table_head + data + table_foot)
+        })
     });
    
 });
@@ -108,7 +121,12 @@ var submitAnswer = function(answer){
             </form>
         </div>
         </div>
+        <div class="card ">
+            <div class="card-header bg-info text-white ">Leaderboard</div>
+              <div class="card-body">
+                    <div id="leaderboard"></div>
+              </div>
         </div>
-        <div id="log" ></div>
-</body>
+    </div>
+    </body>
 </html>

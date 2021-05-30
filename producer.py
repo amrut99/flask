@@ -112,6 +112,8 @@ def login():
         print(user)
         if user:
             session['loggedin'] = str(user['_id'])
+            questions = mongoQ.db.producer.find({'owner':user['username']})
+            allquizes = [q['qcode'] for q in questions]
             return render_template("create_quiz.html", username=user['username'], allquizes=allquizes)
         else:
             session['loggedin'] = ""
@@ -141,6 +143,20 @@ def get_leaderboards(quiz_code):
     for p in players:
         leaders[p["_id"]] = p["total"]
     return json.dumps(leaders)
+
+def get_leaderboard_html(quiz_code):
+    players = mongoL.db.leaderboard.aggregate([
+        {'$match': {'qcode':quiz_code}},
+        {'$group': {'_id':'$username','total':{'$sum':'$answer'}}}
+    ])
+    leaders = {}
+    leader_html=""
+    try:
+        for p in sorted(players, key= lambda item:item['total'], reverse=True):
+            leader_html=("{}<tr><td>{}</td><td>{}</td></tr>").format(leader_html, p["_id"], p["total"])
+    except:
+        pass
+    return leader_html
 
 @socket_.on('connect')
 def quiz_connect():
@@ -191,6 +207,8 @@ def record_answer(message):
         })
         resp['answer'] = 0
         emit('leaderboard', resp)
+    emit('all_leaderboard', get_leaderboard_html(message["qcode"]), room=message["qcode"])
+
 
 @socket_.on('join_quiz')
 def join_quiz(message):
