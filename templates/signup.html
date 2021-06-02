@@ -10,7 +10,19 @@
   <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.16.0/umd/popper.min.js"></script>
   <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
- 
+  <script>
+      $("form").submit(()=>{
+        var pass = $('#password').val();
+        var pass2 = $('#confpassword').val();
+        if(pass != pass2){
+            alert('the passwords didn\'t match!');
+            return false
+        }
+        else{
+            return true
+        }
+      })
+  </script>
 </head>
 <body>
         <div class="container">
@@ -24,11 +36,23 @@
                             <label for="q" class="text-primary">Username:</label>
                             <input type="text" class="form-control" id="username" name="username">
                         </div>
+                        <div class="form-group">
+                            <label for="q" class="text-primary">Email:</label>
+                            <input type="email" class="form-control" id="email" name="email">
+                        </div>
                         <div class="row">
                             <div class="col">
                                 <div class="form-group">
                                     <label for="c1" class="text-info">Password:</label>
-                                    <input type="text" class="form-control" id="password" name="password">
+                                    <input type="password" class="form-control" id="password" name="password">
+                                </div> 
+                            </div>
+                        </div> 
+                        <div class="row">
+                            <div class="col">
+                                <div class="form-group">
+                                    <label for="c1" class="text-info">Confirm Password:</label>
+                                    <input type="password" class="form-control" id="confpassword" name="confpassword">
                                 </div> 
                             </div>
                         </div> 

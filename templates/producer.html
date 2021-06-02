@@ -18,6 +18,9 @@
           <li class="nav-item active">
             <a class="nav-link" href="/quiz">My Quizes</a>
           </li>
+          <li class="nav-item active">
+            <a class="nav-link" href="/free-quizes">Free Quizes</a>
+          </li>
           <li class="nav-item">
             <a class="nav-link" href="/logout">Logout {{username}}</a>
           </li>
@@ -28,11 +31,12 @@
         <div class="card ">
             <div class="card-header bg-primary text-white ">Enter your quiz question.</div>
               <div class="card-body">
-        <form action="." method='POST' enctype = "multipart/form-data">
+        <form action="." method='POST' enctype = "multipart/form-data" id="writeq" name="writeq">
             <div class="form-group">
             <p class="text-info">{{message}}</p>
             <p id="quizcode" class="text-primary">Quiz Code: {{quizcode}}</p>
                 <input type="hidden" name="qcode" id="qcode" value={{quizcode}}>
+                <input type="hidden" name="formname" id="formname" value="writeq">
             <div class="form-group">
                 <label for="q" class="text-primary">Question:</label>
                 <input type="text" class="form-control" id="q" name="q">
@@ -105,6 +109,33 @@
                 </div> 
             </div> 
         </form>
+    </div>
+  </div>
+  <div class="card ">
+    <div class="card-header bg-primary text-white ">Upload your Quiz in CSV Format.</div>
+    <div class="card-body">
+    <form action="." method=POST enctype = "multipart/form-data" id="csvupload" name="csvupload">
+        <p class='text-info'>The CSV file format should be as follows</p>
+        <table>
+            <tr><td>Question,Answer1,Answer2,Answer3,Answer4,Correct Answer</td></tr>
+            <tr><td>Who was Alber Einstein?,Scientiest,Artist,Politician,Football Player,Scientiest</td></tr>
+        </table>
+        <input type="hidden" name="qcode" id="qcode" value={{quizcode}}>
+        <input type="hidden" name="formname" id="uploadcsv" value="uploadcsv">
+
+        <div class="row">
+            <div class="col">
+                <label for="file" class="text-primary">Select CSV: </label>
+                <input type="file" class="form-control-file border" id="file" name='file'>  
+            </div> 
+        </div> 
+        
+        <div class="row">
+            <div class="col">
+                <button type="submit" class="btn btn-primary">Save Question</button>
+            </div> 
+        </div> 
+    </form> 
     </div>
   </div>
 </div>

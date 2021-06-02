@@ -1,0 +1,75 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8"/>
+    <title>Quiz Question</title>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.16.0/umd/popper.min.js"></script>
+  <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+ 
+</head>
+<body>
+    <nav class="navbar navbar-expand-sm bg-dark navbar-dark">
+        <ul class="navbar-nav">
+          <li class="nav-item ">
+            <a class="nav-link" href="/quiz">My Quizes</a>
+          </li>
+          <li class="nav-item active">
+            <a class="nav-link" href="/free-quizes">Free Quizes</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="/logout">Logout {{username}}</a>
+          </li>
+        </ul>
+      </nav>
+      <br>
+        <div class="container">
+            <div class="card ">
+              <div class="card-header bg-primary text-white ">Make My Quiz Available to All</div>
+                <div class="card-body">
+                    {% if message == "EXIST" %}
+                    <p class="text-info">This quiz is already available to all.</p>
+                    {% else %}
+                    <form action="/make-available" method='POST'>
+                        <div class="form-group">
+                        <p class="text-info">{{message}}</p>
+                        <p id="quizcode" class="text-primary">Quiz Code: {{quizcode}}</p>
+                        <input type="hidden" name="qcode" id="qcode" value={{quizcode}}>
+                        <div class="form-group">
+                            <label for="description" class="text-primary">Description:</label>
+                            <textarea rows=2 cols=50 id="description" name="description" placeholder="Write brief information about what is quiz is about"></textarea>
+                        </div>
+                        <div class="row">
+                            <div class="col">
+                                <div class="form-group">
+                                    <label for="c1" class="text-info">Category:</label>
+                                    <input type="text" class="form-control" id="category" name="category">
+                                </div> 
+                            </div>
+                        </div> 
+                        <div class="row">
+                            <div class="col">
+                                <div class="form-group">
+                                    <label for="c1" class="text-info">Sub Category:</label>
+                                    <input type="text" class="form-control" id="subcategory" name="subcategory">
+                                </div> 
+                            </div>
+                        </div> 
+                      
+                        <div class="row">
+                            <div class="col">
+                                <button type="submit" class="btn btn-primary">Make it Available</button>
+                            </div>
+                        </div> 
+                    </div>
+                    </form>
+                    {% endif %}
+                </div>
+            </div>
+        
+</body>
+</html>

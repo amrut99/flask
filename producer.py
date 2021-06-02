@@ -18,24 +18,56 @@ import os
 import datetime
 from bson.objectid import ObjectId
 from werkzeug.utils import secure_filename
+import logging
+from logging.config import dictConfig
+dictConfig({
+    'version': 1,
+    'formatters': {'default': {
+        'format': '[%(asctime)s] %(levelname)s in %(module)s: %(message)s',
+    }},
+    'handlers': {'wsgi': {
+        'class': 'logging.StreamHandler',
+        'stream': 'ext://flask.logging.wsgi_errors_stream',
+        'formatter': 'default'
+    }},
+    'root': {
+        'level': 'INFO',
+        'handlers': ['wsgi']
+    }
+})
+from logging.handlers import SMTPHandler
+
+mail_handler = SMTPHandler(
+    mailhost='127.0.0.1',
+    fromaddr='info@quizme.in',
+    toaddrs=['fandfiles@gmail.com'],
+    subject='Application Error'
+)
+mail_handler.setLevel(logging.ERROR)
+mail_handler.setFormatter(logging.Formatter(
+    '[%(asctime)s] %(levelname)s in %(module)s: %(message)s'
+))
 
 
-ALLOWED_EXTENSIONS = set(['png', 'jpg', 'jpeg', 'gif'])
+ALLOWED_EXTENSIONS = set(['png', 'jpg', 'jpeg', 'gif', 'csv'])
 
 app = Flask(__name__)
 app.config['SECRET_KEY']='thisistopsecret'
 app.secret_key = "secret key"
 app.config['UPLOAD_FOLDER'] = 'static/media'
+app.config['UPLOAD_QUIZ_FOLDER'] = 'static/quizfiles'
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024
 #app.config["MONGO_URI"] = "mongodb://localhost:27017/QuestionBank"
 mongoQ = PyMongo(app, "mongodb://localhost:27017/QuestionBank")
 mongoL = PyMongo(app, "mongodb://localhost:27017/LeaderBoard")
 mongoUser = PyMongo(app, "mongodb://localhost:27017/Users")
 app.host = '0.0.0.0'
-socket_ = SocketIO(app, message_queue='redis://localhost:6379', cors_allowed_origins="*")
+socket_ = SocketIO(app, message_queue='redis://localhost:6379')
 salt = "9wgt"
 thread = None
 thread_lock = Lock()
+if not app.debug:
+    app.logger.addHandler(mail_handler)
 
 def is_authenticated():
     try:
@@ -56,8 +88,18 @@ def signup():
     if request.method == 'GET':
         return render_template('signup.html')
     elif request.method == 'POST':
+        find_user = mongoUser.db.users.find_one({"username":request.form["username"]})
+        print(find_user)
+        if find_user:
+            return render_template('signup.html',message='User already exists. Choose unique username!!!')
+        find_email = mongoUser.db.users.find_one({"email":request.form["email"]})
+        if find_email:
+            return render_template('signup.html',message='Email already used. Choose different email!!!')
+
         db_password = hashlib.sha224((request.form["password"]+salt).encode()).hexdigest()
-        user = mongoUser.db.users.insert_one({"username":request.form["username"],"password":db_password})
+        user = mongoUser.db.users.insert_one({"username":request.form["username"],
+                                                "email":request.form["email"],
+                                            "password":db_password})
         if user:
             return render_template('login.html',message='Your account is successfully created. Now you can login.')
         else:
@@ -113,7 +155,7 @@ def login():
         if user:
             session['loggedin'] = str(user['_id'])
             questions = mongoQ.db.producer.find({'owner':user['username']})
-            allquizes = [q['qcode'] for q in questions]
+            allquizes = set([q['qcode'] for q in questions])
             return render_template("create_quiz.html", username=user['username'], allquizes=allquizes)
         else:
             session['loggedin'] = ""
@@ -131,32 +173,6 @@ def question_page(quiz_code):
 @app.route("/post-answer/<quiz_code>",methods=['GET'])
 def post_answer(quiz_code):
     return render_template('post_answer.html')
-
-@app.route("/leaderboards/<quiz_code>", methods=['GET'])
-def get_leaderboards(quiz_code):
-     # Create leaderboard
-    players = mongoL.db.leaderboard.aggregate([
-        {'$match': {'qcode':quiz_code}},
-        {'$group': {'_id':'$username','total':{'$sum':'$answer'}}}
-    ])
-    leaders = {}
-    for p in players:
-        leaders[p["_id"]] = p["total"]
-    return json.dumps(leaders)
-
-def get_leaderboard_html(quiz_code):
-    players = mongoL.db.leaderboard.aggregate([
-        {'$match': {'qcode':quiz_code}},
-        {'$group': {'_id':'$username','total':{'$sum':'$answer'}}}
-    ])
-    leaders = {}
-    leader_html=""
-    try:
-        for p in sorted(players, key= lambda item:item['total'], reverse=True):
-            leader_html=("{}<tr><td>{}</td><td>{}</td></tr>").format(leader_html, p["_id"], p["total"])
-    except:
-        pass
-    return leader_html
 
 @socket_.on('connect')
 def quiz_connect():
@@ -184,9 +200,11 @@ def record_answer(message):
     # Record answer
     resp = {}
     print("Answer Submitted:")
-    print(message)
+    print(message['answer'].encode("utf-8"))
     question = mongoQ.db.producer.find_one({"_id":ObjectId(message['question'])})
-    if message['answer'] == question['ans']:
+    # Encode it to mathc non ASCII character match
+    print(question['ans'].encode("utf-8"))
+    if (message['answer'].encode("utf-8")) == (question['ans'].encode("utf-8")):
         resp['answer'] = 1
         # Add to leaderboard
         mongoL.db.leaderboard.insert_one({
@@ -239,29 +257,6 @@ def disconnect_request():
          {'data': 'Disconnected!', 'count': session['receive_count']},
          callback=can_disconnect)
 
-# @app.route("/post-question/<qcode>/<nxt>", methods=['GET'])
-# @app.route("/post-question/<qcode>", methods=['GET'])
-# def post_question(qcode, nxt=None):
-#     print(nxt)
-#     if not nxt:
-#         nxt = 1
-#     questions = mongoQ.db.producer.find({"qcode":qcode})
-#     print(questions)
-#     count = 1
-#     for q in questions:
-#         print(q)
-#         if count == int(nxt):
-#             return render_template('post_question.html',quizcode=qcode,
-#                                                     username="Amrut",
-#                                                    q=q['q'],
-#                                                    c1=q['c1'],
-#                                                    c2=q['c2'],
-#                                                    c3=q['c3'],
-#                                                    c4=q['c4'],
-#                                                    img="/"+q['img'])
-#         count = count + 1
-#     print("Out of loop")
-#     return render_template('post_question.html',quizcode=qcode, message="No record Found!!")
 @app.route("/post-questions/<qcode>", methods=['GET'])
 def post_questions(qcode):
     user = is_authenticated()
@@ -285,6 +280,12 @@ def logout():
 #
 @app.route("/get-questions/<qcode>", methods=['GET'])
 def get_questions(qcode):
+    # If the quiz is freely available then do not check ownership
+    free_quizes = mongoQ.db.producer.find_one({'FreeQuiz':1, 'quiz_code':qcode})
+    if free_quizes:
+        questions = mongoQ.db.producer.find({"qcode":qcode})
+        allquestions = [q for q in questions]
+        return json.dumps(allquestions, default=str)
     user = is_authenticated()
     if user:
         questions = mongoQ.db.producer.find({"qcode":qcode, "owner":user["username"]})
@@ -292,6 +293,78 @@ def get_questions(qcode):
         return json.dumps(allquestions, default=str)
     else:
         return json.dumps({})
+
+@app.route("/leaderboards/<quiz_code>", methods=['GET'])
+def get_leaderboards(quiz_code):
+     # Create leaderboard
+    players = mongoL.db.leaderboard.aggregate([
+        {'$match': {'qcode':quiz_code}},
+        {'$group': {'_id':'$username','total':{'$sum':'$answer'}}}
+    ])
+    leaders = {}
+    for p in players:
+        leaders[p["_id"]] = p["total"]
+    return json.dumps(leaders)
+
+def get_leaderboard_html(quiz_code):
+    players = mongoL.db.leaderboard.aggregate([
+        {'$match': {'qcode':quiz_code}},
+        {'$group': {'_id':'$username','total':{'$sum':'$answer'}}}
+    ])
+    leader_html=""
+    try:
+        for p in sorted(players, key= lambda item:item['total'], reverse=True):
+            leader_html=("{}<tr><td>{}</td><td>{}</td></tr>").format(leader_html, p["_id"], p["total"])
+    except:
+        pass
+    return leader_html
+#
+#
+# End Ajax APIs
+#
+#
+
+@app.route("/free-quizes", methods=['GET'])
+def get_free_quizes():
+    all_free_quizes = mongoQ.db.producer.find({'FreeQuiz':1})
+    
+    return render_template('free_quizes.html', freequizes=all_free_quizes)
+
+@app.route("/make-available", methods=['POST'])
+@app.route("/make-available/<qcode>", methods=['GET'])
+def make_available(qcode=None):
+    # Check if the user is owner of the quiz
+    # If true add the quiz to the freely available list
+    if not qcode:
+        qcode = request.form['qcode']
+    if request.method == 'POST':
+        user = is_authenticated()
+        if user:
+            questions = mongoQ.db.producer.find_one({"qcode":qcode, "owner":user["username"]})
+            try:
+                mongoQ.db.producer.insert_one({
+                    'FreeQuiz': 1,
+                    'quiz_code':qcode,
+                    'description':request.form['description'],
+                    'category':request.form['category'],
+                    'subcategory': request.form['subcategory'],
+                    'publisher': user['username']
+                })
+            except:
+                logging.exception('')
+                return render_template('make_available.html', message="Something unexpected happened! Please contant info@quizme.in",
+                                        quizcode=qcode)
+        else:
+            return render_template('make_available.html', message="Please login to perform this action!!",
+                                        quizcode=qcode)
+        return render_template('create_quiz.html', message="Your quiz '{}' was successfully made available to all!!".format(qcode),
+                                        quizcode=qcode)
+    if request.method == 'GET':
+        #See if this is already freely available
+        find_quiz = mongoQ.db.producer.find_one({'FreeQuiz': 1, 'quiz_code':qcode})
+        if find_quiz:
+            return render_template('make_available.html', message="EXIST")
+        return render_template('make_available.html', quizcode=qcode)
 
 # def get_quizes():
 #     user = is_authenticated()
@@ -305,7 +378,28 @@ def get_questions(qcode):
 #             if not q['qcode'] in all_quiz:
 #                 all_quiz[q['qcode']] = 1
 #         return json.dumps(all_quiz, default=str)
-
+def make_quiz_from_file(fpath, qcode, user):
+    print(fpath)
+    try:
+        with open(fpath) as fobj:
+            for line in fobj.readlines()[1:]:
+                qparts = line.split(",")
+                mongoQ.db.producer.insert_one(
+                {
+                    'qcode':qcode,
+                    'q': qparts[0].strip(),
+                    'c1': qparts[1].strip(),
+                    'c2': qparts[2].strip(),
+                    'c3': qparts[3].strip(),
+                    'c4': qparts[4].strip(),
+                    'ans': qparts[5].strip(),
+                    'img': "/",
+                    'owner': user['username']
+                }
+            )
+        return True
+    except:
+        return False
 
 @app.route("/uploads/", methods=['POST', 'GET'])
 @app.route("/uploads/<quizcode>", methods=['POST', 'GET'])
@@ -313,16 +407,28 @@ def save_question(quizcode=None):
 # check if the post request has the file part
     user = is_authenticated()
     if request.method == 'POST':
+        if request.form['formname'] == "uploadcsv":
+            file = request.files['file']
+            if file and file.filename.rsplit('.', 1)[1].lower() == "csv":
+                filename = "{}-{}".format(request.form['qcode'], secure_filename(file.filename))
+                fpath = os.path.join(app.config['UPLOAD_QUIZ_FOLDER'], filename)
+                print("PATH....................................")
+                print(fpath)
+                file.save(fpath)
+                success = make_quiz_from_file(fpath, request.form['qcode'], user)
+                if success:
+                    return render_template("producer.html",quizcode=request.form['qcode'], username=user['username'], message="Your quiz is getting ready.")
+                else:
+                    return render_template("producer.html",quizcode=request.form['qcode'], username=user['username'], message="Error! Processing csv file.")
+            else:
+                return render_template("producer.html",quizcode=request.form['qcode'], username=user['username'], message="Error! Something wrong uploading file.")
+
         imgpath = ""
         resp = ""
         if not user:
             return render_template("login.html", message="Please login to create quiz.")
-        print(request.form)
         if 'file' not in request.files:
             imgpath="/"
-            # resp = jsonify({'message' : 'No file part in the request'})
-            # resp.status_code = 400
-            # return res
         else:
             file = request.files['file']
             if file.filename == '':
@@ -333,17 +439,17 @@ def save_question(quizcode=None):
                 resp = jsonify({'message' : 'File successfully uploaded'})
                 imgpath="/" + app.config['UPLOAD_FOLDER']+"/"+filename
             else:
-                resp = 'Allowed file types are txt, pdf, png, jpg, jpeg, gif'
+                resp = 'Allowed file types are png, jpg, jpeg, gif'
         print(request.form['options'])
         mongoQ.db.producer.insert_one(
             {
                 'qcode':request.form['qcode'],
-                'q': request.form['q'],
-                'c1': request.form['c1'],
-                'c2': request.form['c2'],
-                'c3': request.form['c3'],
-                'c4': request.form['c4'],
-                'ans': request.form[request.form['options']],
+                'q': request.form['q'].strip(),
+                'c1': request.form['c1'].strip(),
+                'c2': request.form['c2'].strip(),
+                'c3': request.form['c3'].strip(),
+                'c4': request.form['c4'].strip(),
+                'ans': request.form[request.form['options']].strip(),
                 'img': imgpath,
                 'owner': user['username']
             }
